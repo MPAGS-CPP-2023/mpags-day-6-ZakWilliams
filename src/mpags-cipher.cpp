@@ -3,6 +3,7 @@
 #include "CipherType.hpp"
 #include "ProcessCommandLine.hpp"
 #include "TransformChar.hpp"
+#include "MisArgException.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -21,10 +22,18 @@ int main(int argc, char* argv[])
     // Process command line arguments
     const bool cmdLineStatus{processCommandLine(cmdLineArgs, settings)};
 
+
     // Any failure in the argument processing means we can't continue
     // Use a non-zero return value to indicate failure
     if (!cmdLineStatus) {
         return 1;
+    }
+
+    //cmd caler edited so that rather that returning false, it throws an error with an associated message
+    try {
+        processCommandLine(cmdLineArgs, settings);
+    } catch ( const MissingArgument& e) { // if processCommandLine throws an error
+        std::cerr << "ERR: Incorrect argument call - " << e.what() << std::endl;
     }
 
     // Handle help, if requested
