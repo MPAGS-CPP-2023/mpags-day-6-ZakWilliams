@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
         processCommandLine(cmdLineArgs, settings);
     } catch ( const MissingArgument& e) { // if processCommandLine throws an error
         std::cerr << "ERR: Incorrect argument call - " << e.what() << std::endl;
-    }
+    } //write different catch for different error types
 
     // Handle help, if requested
     if (settings.helpRequested) {

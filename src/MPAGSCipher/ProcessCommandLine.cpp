@@ -90,12 +90,13 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             // Handle output file option
             // Next element is filename unless "-o" is the last argument
             if (i == nCmdLineArgs - 1) {
-                std::cerr << "[error] -o requires a filename argument"
-                          << std::endl;
+                //std::cerr << "[error] -o requires a filename argument"
+                //          << std::endl;
                 // Set the flag to indicate the error and terminate the loop
-                processStatus = false;
-                break;
+                //processStatus = false;
+                //break;
                 // THROW HERE
+                throw MissingArgument{"-o requires a filename argument"};
             } else {
                 // Got filename, so assign value and advance past it
                 settings.outputFile = cmdLineArgs[i + 1];
@@ -105,12 +106,13 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             // Handle cipher key option
             // Next element is the key unless -k is the last argument
             if (i == nCmdLineArgs - 1) {
-                std::cerr << "[error] -k requires a positive integer argument"
-                          << std::endl;
+                //std::cerr << "[error] -k requires a positive integer argument"
+                //          << std::endl;
                 // Set the flag to indicate the error and terminate the loop
-                processStatus = false;
-                break;
+                //processStatus = false;
+                //break;
                 // THROW HERE
+                throw MissingArgument{"-k requires a positive integer argument"};
             } else {
                 // Got the key, so assign the value and advance past it
                 settings.cipherKey.push_back(cmdLineArgs[i + 1]);
@@ -124,12 +126,13 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             // Handle cipher type option
             // Next element is the name of the cipher, unless -c is the last argument
             if (i == nCmdLineArgs - 1) {
-                std::cerr << "[error] -c requires a string argument"
-                          << std::endl;
+                //std::cerr << "[error] -c requires a string argument"
+                //          << std::endl;
                 // Set the flag to indicate the error and terminate the loop
-                processStatus = false;
-                break;
+                //processStatus = false;
+                //break;
                 // THROW HERE
+                throw MissingArgument{"-c requires a string argument"};
             } else {
                 // Got the cipher name, so assign the value and advance past it
                 if (cmdLineArgs[i + 1] == "caesar") {
@@ -139,22 +142,24 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
                 } else if (cmdLineArgs[i + 1] == "vigenere") {
                     settings.cipherType.push_back(CipherType::Vigenere);
                 } else {
-                    std::cerr << "[error] unknown cipher '"
-                              << cmdLineArgs[i + 1] << "'\n";
-                    processStatus = false;
-                    break;
+                    //std::cerr << "[error] unknown cipher '"
+                    //          << cmdLineArgs[i + 1] << "'\n";
+                    //processStatus = false;
+                    //break;
                     // THROW HERE
+                    throw MissingArgument{"unknown cipher after -c"};
                 }
                 ++i;
             }
         } else {
             // Have encoutered an unknown flag, output an error message,
             // set the flag to indicate the error and terminate the loop
-            std::cerr << "[error] unknown argument '" << cmdLineArgs[i]
-                      << "'\n";
-            processStatus = false;
-            break;
+            //std::cerr << "[error] unknown argument '" << cmdLineArgs[i]
+            //          << "'\n";
+            //processStatus = false;
+            //break;
             // THROW HERE
+            throw MissingArgument{"unknown argument"};
         }
     }
 
@@ -173,12 +178,13 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
     const std::size_t nTypes{settings.cipherType.size()};
     const std::size_t nKeys{settings.cipherKey.size()};
     if (nTypes != nExpectedCiphers || nKeys != nExpectedCiphers) {
-        std::cerr << "[error] expected types and keys for " << nExpectedCiphers
-                  << " ciphers\n"
-                  << "        but received " << nTypes << " types and " << nKeys
-                  << " keys" << std::endl;
-        processStatus = false;
+        //std::cerr << "[error] expected types and keys for " << nExpectedCiphers
+        //         << " ciphers\n"
+        //          << "        but received " << nTypes << " types and " << nKeys
+        //          << " keys" << std::endl;
+        //processStatus = false;
         // THROW HERE
+        throw MissingArgument{"mismatched number of ciphers and keys"};
     }
 
     return processStatus;
