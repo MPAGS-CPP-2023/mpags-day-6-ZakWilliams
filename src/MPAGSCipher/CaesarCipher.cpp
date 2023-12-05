@@ -1,5 +1,6 @@
 #include "CaesarCipher.hpp"
 #include "Alphabet.hpp"
+#include "ExceptionInvalidKey.hpp"
 
 #include <iostream>
 #include <string>
@@ -36,6 +37,8 @@ CaesarCipher::CaesarCipher(const std::string& key) : key_{0}
             << "        the supplied key (" << key << ") could not be successfully converted" << std::endl;
             return;
         }
+    } else { // If key is empty
+        throw InvalidKey{"CaesarCipher (key is empty)"};
     }
 }
 

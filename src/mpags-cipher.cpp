@@ -3,7 +3,8 @@
 #include "CipherType.hpp"
 #include "ProcessCommandLine.hpp"
 #include "TransformChar.hpp"
-#include "MisArgException.hpp"
+#include "ExceptionMisArg.hpp"
+#include "ExceptionInvalidKey.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -84,6 +85,7 @@ int main(int argc, char* argv[])
             std::cerr << "[error] failed to create istream on file '"
                       << settings.inputFile << "'" << std::endl;
             return 1;
+            //PUT ANOTHER THROW HERE LATER
         }
 
         // Loop over each character from the file
@@ -104,8 +106,12 @@ int main(int argc, char* argv[])
     std::size_t nCiphers{settings.cipherType.size()};
     ciphers.reserve(nCiphers);
     for (std::size_t iCipher{0}; iCipher < nCiphers; ++iCipher) {
-        ciphers.push_back(CipherFactory::makeCipher(
-            settings.cipherType[iCipher], settings.cipherKey[iCipher]));
+        try {
+            ciphers.push_back(CipherFactory::makeCipher( //This is the line which generates and pushes back the cipher. 
+                settings.cipherType[iCipher], settings.cipherKey[iCipher]));
+        } catch (const InvalidKey& e) { //if error in creating cipher due to invalid key
+            std::cerr << "ERR: Invalid key try for " << e.what() << " entry at position" << iCipher << std::endl;
+        }
 
         // Check that the cipher was constructed successfully
         if (!ciphers.back()) {
