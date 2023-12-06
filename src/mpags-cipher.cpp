@@ -11,6 +11,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <future>
+#include <cmath>
 
 int main(int argc, char* argv[])
 {
@@ -21,20 +24,20 @@ int main(int argc, char* argv[])
     ProgramSettings settings{false, false, "", "", {}, {}, CipherMode::Encrypt};
 
     // Process command line arguments
-    const bool cmdLineStatus{processCommandLine(cmdLineArgs, settings)};
+    //const bool cmdLineStatus{processCommandLine(cmdLineArgs, settings)};
 
 
     // Any failure in the argument processing means we can't continue
     // Use a non-zero return value to indicate failure
-    if (!cmdLineStatus) {
-        return 1;
-    }
+    //if (!cmdLineStatus) {
+    //    return 1;
+    //}
 
-    //cmd caler edited so that rather that returning false, it throws an error with an associated message
+    //cmd caller edited so that rather that returning false, it throws an error with an associated message
     try {
         processCommandLine(cmdLineArgs, settings);
     } catch ( const MissingArgument& e) { // if processCommandLine throws an error
-        std::cerr << "ERR: Incorrect argument call - " << e.what() << std::endl;
+        std::cerr << "[error] Incorrect argument call - " << e.what() << std::endl;
     } //write different catch for different error types
 
     // Handle help, if requested
@@ -85,7 +88,6 @@ int main(int argc, char* argv[])
             std::cerr << "[error] failed to create istream on file '"
                       << settings.inputFile << "'" << std::endl;
             return 1;
-            //PUT ANOTHER THROW HERE LATER
         }
 
         // Loop over each character from the file
@@ -110,7 +112,7 @@ int main(int argc, char* argv[])
             ciphers.push_back(CipherFactory::makeCipher( //This is the line which generates and pushes back the cipher. 
                 settings.cipherType[iCipher], settings.cipherKey[iCipher]));
         } catch (const InvalidKey& e) { //if error in creating cipher due to invalid key
-            std::cerr << "ERR: Invalid key try for " << e.what() << " entry at position" << iCipher << std::endl;
+            std::cerr << "[error] Invalid key try for " << e.what() << " entry at position" << iCipher << std::endl;
         }
 
         // Check that the cipher was constructed successfully
@@ -126,10 +128,56 @@ int main(int argc, char* argv[])
         std::reverse(ciphers.begin(), ciphers.end());
     }
 
-    // Run the cipher(s) on the input text, specifying whether to encrypt/decrypt
-    for (const auto& cipher : ciphers) {
-        cipherText = cipher->applyCipher(cipherText, settings.cipherMode);
+    //Threading starts here
+    //We have now assembled cipherText
+    //Cannot do threads before this point as we need
+    //We will split up ciphertext into seperate threads, and then apply cipher on each of them 
+
+    //Calculate size of each substring
+    std::size_t numThreads{4};
+    const std::size_t substringSize{static_cast<std::size_t>(std::floor(cipherText.length()/numThreads))};
+    const std::size_t excessSize{cipherText.length() % numThreads}; //calculate remainder, i.e. number of strings to get +1 to size
+    std::size_t iStart{0};
+    std::size_t iEnd{0};
+    //vector will store the various 'futures'
+    std::vector<std::future<std::string>> futures;
+    //Create and launch thread operations
+    for (std::size_t iThread = 0; iThread < numThreads; ++iThread) {
+        // Calculate range of segment being looped over by each thread
+        //need to change size range of threads - make more equal, how to calculate start and end?
+        //after change thread size, still broken?
+        //Calculate remainder
+        //remainder size determines how many should get size + 1
+        //iStart = substringSize * iThread; //REDO THIS - if current thread has + 1, all threads before also had +1
+        //iEnd = (substringSize * (iThread + 1)) - 1;  //REDO THIS
+
+        if (iThread < excessSize) {
+            iStart = (substringSize + 1) * iThread;
+            iEnd = iStart + substringSize; //(substringSize + 1) - 1;
+        } else {
+            iStart = excessSize + (iThread * substringSize);//((substringSize + 1) * excessSize) + (substringSize * (iThread - excessSize));
+            iEnd = iStart + substringSize - 1;
+        }
+        //If 1st thread, 1 larger than all other threads
+        if (iThread == 0 && (substringSize % numThreads) != 0) { iEnd = substringSize;} 
+        //Extract out substring
+        std::string ciphersubText = cipherText.substr(iStart, iEnd - iStart);
+        std::cout << ciphersubText << std::endl; //chunk division functions correctly
+        //Start a new thread to process the chunk and push_back enciphered substrings into the futures vector
+        futures.push_back(std::async(std::launch::async, [&]() { //pulls from outside the scope, will edit the 'loaded' values as the for loop is executed 'serially', loading existent values into the threads
+            for (const auto& cipher : ciphers) {
+                ciphersubText = cipher->applyCipher(ciphersubText, settings.cipherMode); //apply the cipher set to the substring
+            }
+            return ciphersubText;
+        }));
     }
+
+    //Combine the substrings into 1 big cipherText
+    std::string outputText{""};
+    for (auto& future : futures) {
+        outputText += future.get();
+    }
+    cipherText = outputText;
 
     // Output the encrypted/decrypted text to stdout/file
     if (!settings.outputFile.empty()) {
