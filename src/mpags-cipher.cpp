@@ -14,9 +14,12 @@
 #include <thread>
 #include <future>
 #include <cmath>
+#include <mutex>
 
 int main(int argc, char* argv[])
 {
+    std::mutex outputTextMutex;
+
     // Convert the command-line arguments into a more easily usable form
     const std::vector<std::string> cmdLineArgs{argv, argv + argc};
 
@@ -138,43 +141,42 @@ int main(int argc, char* argv[])
     const std::size_t substringSize{static_cast<std::size_t>(std::floor(cipherText.length()/numThreads))};
     const std::size_t excessSize{cipherText.length() % numThreads}; //calculate remainder, i.e. number of strings to get +1 to size
     std::size_t iStart{0};
-    std::size_t iEnd{0};
+    std::size_t iEntries{0};
     //vector will store the various 'futures'
     std::vector<std::future<std::string>> futures;
     //Create and launch thread operations
     for (std::size_t iThread = 0; iThread < numThreads; ++iThread) {
         // Calculate range of segment being looped over by each thread
-        //need to change size range of threads - make more equal, how to calculate start and end?
-        //after change thread size, still broken?
-        //Calculate remainder
-        //remainder size determines how many should get size + 1
-        //iStart = substringSize * iThread; //REDO THIS - if current thread has + 1, all threads before also had +1
-        //iEnd = (substringSize * (iThread + 1)) - 1;  //REDO THIS
-
         if (iThread < excessSize) {
             iStart = (substringSize + 1) * iThread;
-            iEnd = iStart + substringSize; //(substringSize + 1) - 1;
+            iEntries = substringSize + 1;
         } else {
-            iStart = excessSize + (iThread * substringSize);//((substringSize + 1) * excessSize) + (substringSize * (iThread - excessSize));
-            iEnd = iStart + substringSize - 1;
+            iStart = excessSize + (iThread * substringSize);
+            iEntries = substringSize;
         }
-        //If 1st thread, 1 larger than all other threads
-        if (iThread == 0 && (substringSize % numThreads) != 0) { iEnd = substringSize;} 
         //Extract out substring
-        std::string ciphersubText = cipherText.substr(iStart, iEnd - iStart);
+        std::string ciphersubText = cipherText.substr(iStart, iEntries);
         std::cout << ciphersubText << std::endl; //chunk division functions correctly
         //Start a new thread to process the chunk and push_back enciphered substrings into the futures vector
-        futures.push_back(std::async(std::launch::async, [&]() { //pulls from outside the scope, will edit the 'loaded' values as the for loop is executed 'serially', loading existent values into the threads
+        futures.push_back(std::async(std::launch::async, [&, ciphersubText]() { //pulls from outside the scope, will edit the 'loaded' values as the for loop is executed 'serially', loading existent values into the threads
+            std::string ciphersubTextLocal = ciphersubText;
+            //apply ciphers to local copy of ciphertext
             for (const auto& cipher : ciphers) {
-                ciphersubText = cipher->applyCipher(ciphersubText, settings.cipherMode); //apply the cipher set to the substring
+                ciphersubTextLocal = cipher->applyCipher(ciphersubTextLocal, settings.cipherMode); //apply the cipher set to the substring
             }
-            return ciphersubText;
+            return ciphersubTextLocal;
         }));
+    }
+
+    //wait for all threads to finish
+    for (auto& future : futures) {
+        future.wait();
     }
 
     //Combine the substrings into 1 big cipherText
     std::string outputText{""};
     for (auto& future : futures) {
+        std::lock_guard<std::mutex> lock(outputTextMutex);
         outputText += future.get();
     }
     cipherText = outputText;
